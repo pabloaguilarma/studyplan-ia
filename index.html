@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StudyPlan IA</title>
+<style>
+:root{--azul:#123c69;--celeste:#eaf4ff;--fondo:#f5f7fb;--verde:#198754;--rojo:#c0392b}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--fondo);color:#1d2939}
+header{background:var(--azul);color:white;padding:24px 18px;text-align:center}
+header h1{margin:0 0 6px}header p{margin:0}
+main{max-width:950px;margin:22px auto;padding:0 14px}
+.panel{background:white;padding:18px;border-radius:14px;margin-bottom:16px;box-shadow:0 3px 12px #102a4310}
+.form-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}
+input,select,button{font:inherit;padding:11px;border:1px solid #ccd5e0;border-radius:8px}
+button{cursor:pointer;background:var(--azul);color:white;border:0;font-weight:bold}
+button.secondary{background:#e7eef7;color:var(--azul)}
+.stats{display:flex;gap:12px;flex-wrap:wrap}.stat{background:var(--celeste);padding:12px 16px;border-radius:10px;min-width:130px}
+.stat strong{display:block;font-size:24px;color:var(--azul)}
+.task{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #edf0f4}
+.task:last-child{border-bottom:0}.task .info{flex:1}.task small{display:block;color:#667085;margin-top:4px}
+.done .info span{text-decoration:line-through;color:#7b8794}
+.task button{padding:7px 9px;background:var(--rojo)}.empty{color:#667085}
+@media(max-width:650px){.form-grid{grid-template-columns:1fr}.task{align-items:flex-start}.stats{display:grid;grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header><h1>StudyPlan IA</h1><p>Organiza tus tareas, aprovecha tu tiempo y cumple tus metas.</p></header>
+<main>
+<section class="panel">
+<h2>Agregar una tarea</h2>
+<form id="taskForm" class="form-grid">
+<input id="taskName" placeholder="Nombre de la tarea" required maxlength="100">
+<input id="taskDate" type="date" required>
+<select id="taskSubject" aria-label="Asignatura">
+<option>Matemática</option><option>Lengua y Literatura</option><option>Física</option>
+<option>Química</option><option>Biología</option><option>Otra</option>
+</select>
+<button type="submit">+ Añadir tarea</button>
+</form>
+</section>
+<section class="panel">
+<h2>Mi resumen</h2>
+<div class="stats">
+<div class="stat"><strong id="total">0</strong>Total de tareas</div>
+<div class="stat"><strong id="pending">0</strong>Pendientes</div>
+<div class="stat"><strong id="completed">0</strong>Completadas</div>
+</div>
+</section>
+<section class="panel">
+<h2>Lista de tareas</h2>
+<label for="filter">Mostrar: </label>
+<select id="filter">
+<option value="all">Todas</option><option value="pending">Pendientes</option><option value="done">Completadas</option>
+</select>
+<div id="taskList"><p class="empty">Todavía no hay tareas. Agrega la primera.</p></div>
+</section>
+</main>
+<script>
+const STORAGE_KEY = "studyplan_tareas_v1";
+let tasks = [];
+try { tasks = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { tasks = []; }
+
+const form = document.getElementById("taskForm");
+const nameInput = document.getElementById("taskName");
+const dateInput = document.getElementById("taskDate");
+const subjectInput = document.getElementById("taskSubject");
+const filterInput = document.getElementById("filter");
+
+function saveTasks() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+}
+function render() {
+  const filtered = tasks.filter(t => filterInput.value === "all" ||
+    (filterInput.value === "done" ? t.done : !t.done));
+  document.getElementById("total").textContent = tasks.length;
+  document.getElementById("pending").textContent = tasks.filter(t => !t.done).length;
+  document.getElementById("completed").textContent = tasks.filter(t => t.done).length;
+  const list = document.getElementById("taskList");
+  list.replaceChildren();
+  if (!filtered.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = tasks.length ? "No hay tareas en esta categoría." : "Todavía no hay tareas. Agrega la primera.";
+    list.appendChild(p);
+    return;
+  }
+  filtered.sort((a,b) => a.date.localeCompare(b.date));
+  filtered.forEach(task => {
+    const row = document.createElement("div");
+    row.className = "task" + (task.done ? " done" : "");
+    const check = document.createElement("input");
+    check.type = "checkbox"; check.checked = task.done;
+    check.setAttribute("aria-label", "Marcar tarea como completada");
+    check.addEventListener("change", () => {
+      task.done = check.checked; saveTasks(); render();
+    });
+    const info = document.createElement("div"); info.className = "info";
+    const title = document.createElement("span"); title.textContent = task.name;
+    const detail = document.createElement("small");
+    detail.textContent = task.subject + " · Entrega: " + task.date;
+    info.append(title, detail);
+    const remove = document.createElement("button"); remove.textContent = "Eliminar";
+    remove.addEventListener("click", () => {
+      tasks = tasks.filter(t => t.id !== task.id); saveTasks(); render();
+    });
+    row.append(check, info, remove); list.appendChild(row);
+  });
+}
+form.addEventListener("submit", event => {
+  event.preventDefault();
+  tasks.push({id: Date.now().toString(), name: nameInput.value.trim(),
+    date: dateInput.value, subject: subjectInput.value, done: false});
+  saveTasks(); form.reset(); render(); nameInput.focus();
+});
+filterInput.addEventListener("change", render);
+render();
+</script>
+</body>
+</html>
